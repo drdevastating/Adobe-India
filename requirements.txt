@@ -1,0 +1,22 @@
+# Core PDF & image handling
+PyMuPDF==1.24.12
+pillow==10.4.0
+
+# Data manipulation & storage  
+pandas==2.2.3
+numpy>=2.1.0
+openpyxl==3.1.2
+
+# Machine-learning backbone
+torch>=2.6.0
+transformers>=4.43.0
+scikit-learn>=1.6.0
+
+# Remove SpaCy temporarily
+#spacy==3.7.4
+
+# Other utilities
+regex==2024.4.16
+tqdm==4.66.4
+pyyaml==6.0.1
+tabulate==0.9.0
