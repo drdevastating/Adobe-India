@@ -16,13 +16,13 @@ training_data_folder: "training_data"
 # PROCESSING CONSTRAINTS (Adobe Round 1A Requirements)
 # =============================================================================
 constraints:
-  max_processing_time_seconds: 10    # Maximum 10 seconds per PDF
+  max_processing_time_seconds: 8     # Reduced from 10 for safety margin
   max_model_size_mb: 200            # Maximum 200MB model size
   max_memory_usage_mb: 1024         # Maximum 1GB RAM usage
   offline_mode: true                # No network calls allowed
 
-# Processing timeout
-processing_timeout: 10
+# Processing timeout (reduced for performance)
+processing_timeout: 8
 
 # =============================================================================
 # TITLE DETECTION SETTINGS (Step 1 Requirements)
@@ -45,13 +45,14 @@ title_detection:
   enable_subtitle_detection: true    # Enable subtitle combining with title
 
 # =============================================================================
-# HIERARCHY CLASSIFICATION SETTINGS (Step 3 Requirements)
+# HIERARCHY CLASSIFICATION SETTINGS (Step 3 Requirements) - CORRECTED
 # =============================================================================
 hierarchy:
-  # Font size thresholds (relative to document average)
+  # Font size thresholds (relative to document average) - FIXED
   size_ratio_h1: 1.5                # H1 must be ≥150% of average font size
   size_ratio_h2: 1.25               # H2 must be ≥125% of average font size
   size_ratio_h3: 1.1                # H3 must be ≥110% of average font size
+  size_ratio_h4: 1.05               # H4 must be ≥105% of average font size
   
   # Text length constraints
   min_heading_length: 3              # Minimum characters for heading
@@ -71,6 +72,11 @@ hierarchy:
   # Font consistency tracking
   enforce_font_consistency: true     # Same fonts get same hierarchy levels
   consistency_tolerance: 0.1         # Font size tolerance for consistency (±10%)
+  
+  # ADDITIONAL CORRECTIONS for error handling
+  fallback_classification: true      # Enable fallback if ML fails
+  min_confidence_threshold: 0.6      # Minimum confidence for ML classification
+  max_headings_per_page: 20          # Limit headings per page for performance
 
 # =============================================================================
 # FEATURE EXTRACTION SETTINGS
@@ -84,18 +90,18 @@ features:
   number_pattern_bonus: 1.2          # Bonus for numbered patterns
 
 # =============================================================================
-# MACHINE LEARNING MODEL SETTINGS (75% of logic)
+# MACHINE LEARNING MODEL SETTINGS (75% of logic) - OPTIMIZED
 # =============================================================================
 model:
-  # Model configuration
+  # Model configuration - CORRECTED for performance
   name: "distilbert-base-uncased"     # DistilBERT for efficiency
   model_size_limit_mb: 95            # Actual model size (~95MB)
-  max_length: 512                    # Maximum input sequence length
+  max_length: 256                    # REDUCED from 512 for speed
   
-  # Training parameters
+  # Training parameters - OPTIMIZED
   learning_rate: 3e-5
-  batch_size: 8
-  num_epochs: 5
+  batch_size: 4                      # REDUCED from 8 for memory efficiency
+  num_epochs: 3                      # REDUCED from 5 for faster training
   warmup_ratio: 0.1
   weight_decay: 0.01
   dropout_rate: 0.1
@@ -103,7 +109,7 @@ model:
   # Feature engineering
   include_font_features: true         # Include font size/weight in features
   include_position_features: true     # Include position information
-  include_context_features: true      # Include surrounding text context
+  include_context_features: false    # DISABLED for speed optimization
   
   # Classification labels
   labels:
@@ -117,72 +123,21 @@ model:
   # Model paths
   pretrained_model_path: "models/distilbert_hierarchy_classifier"
   fine_tuned_model_path: "models/fine_tuned_hierarchy_model"
+  
+  # PERFORMANCE CORRECTIONS
+  use_cached_model: true             # Cache model to avoid reloading
+  enable_model_quantization: false   # Disable for stability
+  torch_compile: false               # Disable for compatibility
 
 # =============================================================================
-# TEXT PROCESSING SETTINGS
+# TEXT PROCESSING SETTINGS - OPTIMIZED
 # =============================================================================
 text_processing:
   # Text cleaning
   remove_extra_whitespace: true
   remove_page_numbers: true
-  remove_headers_footers: true
+  remove_headers_footers: false      # DISABLED for speed
   min_text_length: 3                 # Minimum characters to consider
   
   # Font analysis
-  font_size_precision: 1             # Decimal places for font size
-  detect_font_changes: true          # Track font changes within lines
-  normalize_font_names: true         # Normalize font name variations
-  
-  # Language processing
-  language: "en"                     # Primary language (English)
-  enable_spell_check: false          # Disable for speed in Round 1A
-  enable_grammar_check: false        # Disable for speed in Round 1A
-
-# =============================================================================
-# OUTPUT FORMAT SETTINGS (Step 4 Requirements)
-# =============================================================================
-output_format:
-  # JSON structure as specified
-  include_title: true                # Include "title" field
-  include_outline: true              # Include "output" array
-  
-  # Outline object structure
-  level_format: "H1"                # Format: H1, H2, H3, H4
-  include_page_numbers: true         # Include "page" field
-  include_text_content: true         # Include "text" field
-  
-  # File naming
-  output_file_suffix: "_hierarchy"   # Suffix for output JSON files
-  indent_json: 2                     # JSON indentation spaces
-  ensure_ascii: false                # Allow Unicode characters
-
-# =============================================================================
-# PERFORMANCE OPTIMIZATION
-# =============================================================================
-performance:
-  # Processing optimization
-  max_concurrent_pdfs: 1             # Process one PDF at a time for Round 1A
-  enable_gpu: false                  # CPU-only for Docker compatibility
-  enable_multiprocessing: false      # Disable for consistent timing
-  
-  # Memory management
-  clear_cache_between_files: true    # Clear ML model cache between PDFs
-  garbage_collect_frequency: 1       # Run garbage collection after each PDF
-  
-  # Logging
-  log_level: "INFO"                  # Logging level
-  log_processing_time: true          # Log processing time for each PDF
-  log_memory_usage: true             # Log memory usage statistics
-
-# =============================================================================
-# DEBUGGING AND DEVELOPMENT
-# =============================================================================
-debug:
-  save_intermediate_files: true      # Save CSV files for debugging
-  save_extraction_metadata: true     # Save detailed extraction metadata
-  verbose_logging: false             # Disable verbose logging in production
-  
-  # Development mode settings
-  development_mode: false            # Set to true for development
-  sample_mode: false                # Process only first 3 pages in sample mode
-  override_time_limits: false       # Ignore time limits in development
+  font_size_precision: 1             # Decimal places
