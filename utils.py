@@ -1,6 +1,7 @@
 """
 Adobe Round 1A: PDF Text Extraction and Font Analysis
 Core utility functions for PDF processing with PyMuPDF
+FIXED: Configuration path corrections
 """
 
 import fitz  # PyMuPDF
@@ -13,8 +14,40 @@ import pandas as pd
 
 def load_config(config_path: str = "config.yaml") -> Dict:
     """Load configuration from YAML file"""
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+    try:
+        with open(config_path, 'r') as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        # Return default config if file doesn't exist
+        return get_default_config()
+
+
+def get_default_config() -> Dict:
+    """Default configuration if config.yaml is missing"""
+    return {
+        'input_folder': 'input',
+        'output_folder': 'output',
+        'processing_timeout': 8,
+        'hierarchy': {
+            'size_ratio_h1': 1.5,
+            'size_ratio_h2': 1.25,
+            'size_ratio_h3': 1.1,
+            'min_heading_length': 3,
+            'max_heading_length': 200,
+            'title_max_words': 15
+        },
+        'features': {
+            'colon_bonus': 1.25,
+            'number_pattern_bonus': 1.2,
+            'size_ratio_h1': 1.5,  # Added for backward compatibility
+            'size_ratio_h2': 1.25,
+            'size_ratio_h3': 1.1
+        },
+        'model': {
+            'name': 'distilbert-base-uncased',
+            'max_length': 256
+        }
+    }
 
 
 def decode_font_flags(flags: int) -> Dict[str, bool]:
@@ -56,6 +89,7 @@ def calculate_heading_score(span_data: Dict, config: Dict) -> float:
     """
     Calculate heading likelihood score (hybrid approach)
     Combines rule-based (25%) and prepares for ML features (75%)
+    FIXED: Use correct config paths
     """
     score = 0.0
     
@@ -66,31 +100,36 @@ def calculate_heading_score(span_data: Dict, config: Dict) -> float:
     # Font size rule (relative to document average)
     if 'avg_font_size' in span_data:
         size_ratio = span_data['size'] / span_data['avg_font_size']
-        if size_ratio >= config['features']['size_ratio_h1']:
+        
+        # FIXED: Use hierarchy config section
+        hierarchy_config = config.get('hierarchy', {})
+        if size_ratio >= hierarchy_config.get('size_ratio_h1', 1.5):
             score += 3.0
-        elif size_ratio >= config['features']['size_ratio_h2']:
+        elif size_ratio >= hierarchy_config.get('size_ratio_h2', 1.25):
             score += 2.0
-        elif size_ratio >= config['features']['size_ratio_h3']:
+        elif size_ratio >= hierarchy_config.get('size_ratio_h3', 1.1):
             score += 1.0
     
     # Bold text bonus
     if font_flags['bold']:
         score += 2.0
     
-    # Pattern-based scoring
+    # Pattern-based scoring - FIXED: Use correct config paths
+    features_config = config.get('features', {})
     if text_patterns['ends_with_colon']:
-        score += config['features']['colon_bonus']
+        score += features_config.get('colon_bonus', 1.25)
     if text_patterns['starts_with_number']:
-        score += config['features']['number_pattern_bonus']
+        score += features_config.get('number_pattern_bonus', 1.2)
     if text_patterns['is_all_caps'] and text_patterns['word_count'] <= 5:
         score += 1.5
     if text_patterns['has_section_keywords']:
         score += 1.0
     
     # Length penalties
+    hierarchy_config = config.get('hierarchy', {})
     if text_patterns['word_count'] > 15:
         score -= 2.0
-    if text_patterns['char_count'] > config['hierarchy']['max_heading_length']:
+    if text_patterns['char_count'] > hierarchy_config.get('max_heading_length', 200):
         score -= 3.0
     
     return score
@@ -109,6 +148,8 @@ def extract_title_from_first_page(page_data: List[Dict], config: Dict) -> str:
     
     # Filter candidates: largest size + bold preference
     title_candidates = []
+    hierarchy_config = config.get('hierarchy', {})
+    
     for span in page_data:
         if span['size'] >= max_size * 0.9:  # Within 90% of max size
             font_flags = decode_font_flags(span['flags'])
@@ -118,7 +159,7 @@ def extract_title_from_first_page(page_data: List[Dict], config: Dict) -> str:
             title_score = span['size']
             if font_flags['bold']:
                 title_score += 5
-            if patterns['word_count'] <= config['hierarchy']['title_max_words']:
+            if patterns['word_count'] <= hierarchy_config.get('title_max_words', 15):
                 title_score += 2
             if not patterns['ends_with_colon']:
                 title_score += 1
@@ -151,16 +192,19 @@ def clean_text_for_heading(text: str) -> str:
 def is_potential_heading(text: str, config: Dict) -> bool:
     """
     Quick filter for potential headings using rules
+    FIXED: Use correct config paths
     """
     text = text.strip()
     
     if not text:
         return False
+    
+    hierarchy_config = config.get('hierarchy', {})
         
     # Length checks
-    if len(text) < config['hierarchy']['min_heading_length']:
+    if len(text) < hierarchy_config.get('min_heading_length', 3):
         return False
-    if len(text) > config['hierarchy']['max_heading_length']:
+    if len(text) > hierarchy_config.get('max_heading_length', 200):
         return False
     
     # Word count check  

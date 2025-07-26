@@ -1,143 +1,205 @@
 # =============================================================================
-# Adobe Round 1A: PDF Hierarchy Detector Configuration
+# Adobe Round 1A: Improved PDF Hierarchy Detector Configuration
+# FOCUS: Quality over Quantity - Much smaller, cleaner JSON outputs
 # =============================================================================
 
 # Project Settings
-project_name: "adobe_round1a_pdf_hierarchy"
-version: "1.0.0"
+project_name: "adobe_round1a_improved_pdf_hierarchy"
+version: "2.0.0"
 
 # Input/Output Directories
 input_folder: "input"
 output_folder: "output"
 models_folder: "models"
-training_data_folder: "training_data"
 
 # =============================================================================
-# PROCESSING CONSTRAINTS (Adobe Round 1A Requirements)
+# QUALITY CONTROL SETTINGS - NEW
 # =============================================================================
-constraints:
-  max_processing_time_seconds: 8     # Reduced from 10 for safety margin
-  max_model_size_mb: 200            # Maximum 200MB model size
-  max_memory_usage_mb: 1024         # Maximum 1GB RAM usage
-  offline_mode: true                # No network calls allowed
-
-# Processing timeout (reduced for performance)
+quality_control:
+  max_headings_per_document: 15         # Limit total headings per PDF
+  min_confidence_threshold: 0.5         # Minimum confidence for inclusion
+  max_text_length: 100                  # Maximum characters per heading
+  min_text_length: 3                    # Minimum characters per heading
+  similarity_threshold: 0.7             # Remove similar headings (0.0-1.0)
+  
+# Processing constraints
 processing_timeout: 8
+max_headings_per_document: 15           # Global limit
+min_confidence_threshold: 0.5           # Global confidence threshold
 
 # =============================================================================
-# TITLE DETECTION SETTINGS (Step 1 Requirements)
+# IMPROVED TITLE DETECTION - More Accurate
 # =============================================================================
 title_detection:
-  # Rule-based component (25%)
-  font_size_weight: 0.4             # Weight for font size in scoring
-  bold_weight: 0.3                  # Weight for bold text in scoring
-  position_weight: 0.2              # Weight for position on page
-  text_length_weight: 0.1           # Weight for text length (shorter preferred)
+  font_size_weight: 0.5                 # Higher weight for font size
+  bold_weight: 0.3                      # Weight for bold text
+  position_weight: 0.2                  # Weight for position on page
   
-  # Title detection thresholds
-  min_title_font_size: 14           # Minimum font size for title candidates
-  max_title_words: 15               # Maximum words in title
-  size_tolerance: 0.95              # Consider fonts within 95% of max as candidates
+  min_title_font_size: 14               # Minimum font size for title
+  max_title_words: 12                   # Reduced max words in title
+  size_tolerance: 0.92                  # More strict - 92% of max size
   
-  # Subtitle detection (meaningful content below title)
-  subtitle_size_ratio: 0.7          # Subtitle must be ≥70% of title font size
-  subtitle_max_distance: 50         # Maximum pixel distance below title
-  enable_subtitle_detection: true    # Enable subtitle combining with title
+  # Title exclusion patterns
+  exclude_patterns:
+    - "^page \\d+$"                     # Page numbers
+    - "^\\d+$"                          # Just numbers
+    - "abstract$"                       # Single word abstracts
+    - "keywords$"                       # Single word keywords
 
 # =============================================================================
-# HIERARCHY CLASSIFICATION SETTINGS (Step 3 Requirements) - CORRECTED
+# STRICT HIERARCHY CLASSIFICATION - Quality Focus
 # =============================================================================
 hierarchy:
-  # Font size thresholds (relative to document average) - FIXED
-  size_ratio_h1: 1.5                # H1 must be ≥150% of average font size
-  size_ratio_h2: 1.25               # H2 must be ≥125% of average font size
-  size_ratio_h3: 1.1                # H3 must be ≥110% of average font size
-  size_ratio_h4: 1.05               # H4 must be ≥105% of average font size
+  # Font size thresholds - More strict
+  size_ratio_h1: 1.4                   # H1 must be ≥140% of average (was 1.5)
+  size_ratio_h2: 1.25                  # H2 must be ≥125% of average
+  size_ratio_h3: 1.15                  # H3 must be ≥115% of average (was 1.1)
   
-  # Text length constraints
-  min_heading_length: 3              # Minimum characters for heading
-  max_heading_length: 200            # Maximum characters for heading
-  title_max_words: 15                # Maximum words in title
+  # Text constraints - More restrictive
+  min_heading_length: 3                 # Minimum characters
+  max_heading_length: 100               # Reduced from 200
+  title_max_words: 12                   # Reduced from 15
+  max_heading_words: 12                 # New: max words per heading
   
-  # Rule-based patterns (25% of classification logic)
-  colon_ending_bonus: 2.0           # Bonus score for text ending with ":"
-  bold_heading_bonus: 1.5           # Bonus score for bold text
-  numbered_pattern_bonus: 1.3       # Bonus for numbered patterns (1., 1.1, etc.)
+  # Pattern bonuses - Higher thresholds
+  colon_ending_bonus: 2.5               # Increased bonus for ":"
+  bold_heading_bonus: 2.0               # Increased bonus for bold
+  numbered_pattern_bonus: 2.0           # Increased bonus for numbers
   
-  # Pattern detection rules
-  detect_colon_endings: true         # Detect "Section:" patterns
-  detect_numbered_headings: true     # Detect "1.1 Introduction" patterns
-  detect_roman_numerals: true        # Detect "I. Introduction" patterns
+  # Strict pattern detection
+  require_distinctive_formatting: true   # Must have bold OR large font
+  min_size_difference: 1.1              # Must be at least 10% larger
   
-  # Font consistency tracking
-  enforce_font_consistency: true     # Same fonts get same hierarchy levels
-  consistency_tolerance: 0.1         # Font size tolerance for consistency (±10%)
-  
-  # ADDITIONAL CORRECTIONS for error handling
-  fallback_classification: true      # Enable fallback if ML fails
-  min_confidence_threshold: 0.6      # Minimum confidence for ML classification
-  max_headings_per_page: 20          # Limit headings per page for performance
+  # Advanced filtering
+  exclude_sentence_endings: true         # Exclude text ending with . ! ?
+  exclude_long_sentences: true           # Exclude obvious sentences
+  min_confidence_for_inclusion: 0.5      # Minimum confidence to include
 
 # =============================================================================
-# FEATURE EXTRACTION SETTINGS
+# FEATURE EXTRACTION - Enhanced Selectivity
 # =============================================================================
 features:
-  min_heading_size: 12               # Minimum font size for headings
-  bold_weight_flag: 16               # PyMuPDF flag bit for bold
-  colon_bonus: 1.25                  # Multiplier if line ends with ':'
-  size_gap_ratio: 1.15               # Font-size ratio to jump a level
-  subtitle_ratio: 0.70               # Subtitle must be ≥ 70% of title size
-  number_pattern_bonus: 1.2          # Bonus for numbered patterns
+  # Size thresholds - More conservative
+  size_ratio_h1: 1.4                   # Stricter H1 detection
+  size_ratio_h2: 1.25                  # Stricter H2 detection  
+  size_ratio_h3: 1.15                  # Stricter H3 detection
+  
+  # Bonus multipliers - Higher for clear indicators
+  colon_bonus: 2.0                     # Higher bonus for colon endings
+  number_pattern_bonus: 1.8            # Higher bonus for numbered patterns
+  bold_bonus: 1.5                     # Bonus for bold text
+  
+  # New filtering features
+  exclude_complete_sentences: true      # Skip obvious sentences
+  exclude_common_words_heavy: true      # Skip text with many common words
+  require_heading_indicators: false     # Don't require specific patterns
+  
+  # Content analysis
+  max_common_word_ratio: 0.3           # Max ratio of common words (the, and, etc.)
+  min_capital_letter_ratio: 0.1        # Min ratio of capital letters
 
 # =============================================================================
-# MACHINE LEARNING MODEL SETTINGS (75% of logic) - OPTIMIZED
+# NLP ENHANCEMENT SETTINGS - NEW
+# =============================================================================
+nlp_processing:
+  enable_advanced_filtering: true       # Use NLP for better filtering
+  use_spacy_if_available: true         # Use spaCy for linguistic analysis
+  pos_tag_filtering: true              # Filter based on part-of-speech tags
+  sentence_structure_analysis: true     # Analyze sentence structure
+  
+  # POS tag preferences for headings
+  preferred_starting_pos: ["NOUN", "PROPN", "NUM", "ADJ"]  # Good heading starters
+  avoid_starting_pos: ["VERB", "ADP", "DET"]              # Avoid these starters
+  max_verbs_in_heading: 1                                 # Max verbs in a heading
+  
+# =============================================================================
+# MACHINE LEARNING MODEL - Optimized for Quality
 # =============================================================================
 model:
-  # Model configuration - CORRECTED for performance
-  name: "distilbert-base-uncased"     # DistilBERT for efficiency
-  model_size_limit_mb: 95            # Actual model size (~95MB)
-  max_length: 256                    # REDUCED from 512 for speed
+  name: "distilbert-base-uncased"       # Efficient model
+  max_length: 128                       # Reduced for faster processing
   
-  # Training parameters - OPTIMIZED
-  learning_rate: 3e-5
-  batch_size: 4                      # REDUCED from 8 for memory efficiency
-  num_epochs: 3                      # REDUCED from 5 for faster training
-  warmup_ratio: 0.1
-  weight_decay: 0.01
-  dropout_rate: 0.1
+  # Training parameters - Quality focused
+  learning_rate: 2e-5                   # Lower learning rate for stability
+  batch_size: 8                         # Increased for better gradients
+  num_epochs: 5                         # More epochs for better learning
   
-  # Feature engineering
-  include_font_features: true         # Include font size/weight in features
-  include_position_features: true     # Include position information
-  include_context_features: false    # DISABLED for speed optimization
+  # Model behavior
+  use_cached_model: true                # Cache for speed
+  confidence_calibration: true          # Calibrate confidence scores
+  ensemble_predictions: false           # Single model for speed
   
-  # Classification labels
-  labels:
-    - "title"
-    - "h1"
-    - "h2"
-    - "h3"
-    - "h4"
-    - "body"
-  
-  # Model paths
-  pretrained_model_path: "models/distilbert_hierarchy_classifier"
-  fine_tuned_model_path: "models/fine_tuned_hierarchy_model"
-  
-  # PERFORMANCE CORRECTIONS
-  use_cached_model: true             # Cache model to avoid reloading
-  enable_model_quantization: false   # Disable for stability
-  torch_compile: false               # Disable for compatibility
+  # Classification thresholds - More strict
+  min_prediction_confidence: 0.6        # Higher threshold
+  use_confidence_weighting: true        # Weight by confidence
 
 # =============================================================================
-# TEXT PROCESSING SETTINGS - OPTIMIZED
+# TEXT PROCESSING - Advanced Filtering
 # =============================================================================
 text_processing:
-  # Text cleaning
+  # Advanced cleaning
   remove_extra_whitespace: true
-  remove_page_numbers: true
-  remove_headers_footers: false      # DISABLED for speed
-  min_text_length: 3                 # Minimum characters to consider
+  normalize_unicode: true               # Normalize special characters
+  remove_non_printable: true            # Remove non-printable characters
   
-  # Font analysis
-  font_size_precision: 1             # Decimal places
+  # Content filtering
+  min_text_length: 3
+  max_text_length: 100                  # Reduced max length
+  
+  # Pattern-based exclusions
+  exclude_patterns:
+    - "^\\d+$"                          # Pure numbers
+    - "^page \\d+"                      # Page references
+    - "www\\.|http"                     # URLs
+    - "@.*\\.(com|org|edu)"            # Email addresses
+    - "^\\([^)]+\\)$"                  # Parenthetical text
+    - "copyright|©|\\d{4}.*rights"      # Copyright notices
+    
+  # Language-specific filtering
+  exclude_common_sentence_starters:
+    - "the following"
+    - "as shown in"
+    - "according to"
+    - "it is important"
+    - "this section"
+    
+# =============================================================================
+# OUTPUT FORMATTING - Clean JSON Structure
+# =============================================================================
+output:
+  # JSON structure
+  include_confidence_scores: false      # Don't include in final JSON
+  include_font_info: false             # Don't include font details
+  sort_by_page_order: true             # Sort headings by page number
+  
+  # Quality indicators
+  add_quality_metrics: true            # Add processing quality info
+  save_processing_summary: true        # Save human-readable summary
+  save_intermediate_files: false       # Don't save intermediate data
+  
+  # File naming
+  use_clean_filenames: true            # Remove special characters from filenames
+  add_timestamp: false                 # Don't add timestamps to filenames
+
+# =============================================================================
+# DEBUGGING AND MONITORING - Optional
+# =============================================================================
+debug:
+  verbose_logging: false               # Detailed logging
+  save_rejected_headings: false       # Save headings that were filtered out
+  export_confidence_analysis: false   # Export confidence score analysis
+  
+  # Performance monitoring
+  track_processing_time: true         # Track timing for each step
+  memory_usage_monitoring: false      # Monitor memory usage
+  
+# =============================================================================
+# BACKWARD COMPATIBILITY - Keep old settings available
+# =============================================================================
+constraints:
+  max_processing_time_seconds: 8
+  max_model_size_mb: 200
+  offline_mode: true
+
+# Legacy settings (kept for compatibility)
+save_intermediate: false              # Don't save intermediate files by default
